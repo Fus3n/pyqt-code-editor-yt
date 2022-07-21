@@ -10,3 +10,4 @@ QScintilla="2.13.3"
 
 [scripts]
 upgrade-pip="python -m pip install --upgrade pip"
+build-qrc="pyrcc5 ./src/icons/resouces.qrc -o ./src/resources.py"
