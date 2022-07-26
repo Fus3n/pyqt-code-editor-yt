@@ -7,6 +7,7 @@ from PyQt5.Qsci import *
 
 import keyword
 import pkgutil
+from lexer import PyCustomLexer
 
 import resources
 
@@ -40,10 +41,10 @@ class Editor(QsciScintilla):
 
 
         # caret
-        # self.setCaretForegroundColor(QColor("#dedcdc"))
+        self.setCaretForegroundColor(QColor("#dedcdc"))
         self.setCaretLineVisible(True)
         self.setCaretWidth(2)
-        # self.setCaretLineBackgroundColor(QColor("#2c313c"))
+        self.setCaretLineBackgroundColor(QColor("#2c313c"))
         
 
         # EOL
@@ -52,7 +53,7 @@ class Editor(QsciScintilla):
 
 
         # lexer for syntax highlighting
-        self.pylexer = QsciLexerPython() # theres a default lexer for many languages
+        self.pylexer = PyCustomLexer(self) 
         self.pylexer.setDefaultFont(self.window_font)
 
         # Api (you can add autocompletion using this)
