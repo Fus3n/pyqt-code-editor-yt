@@ -2,5 +2,6 @@
 <qresource prefix="icons">
     <file>close-icon.svg</file>
     <file>folder-icon-blue.svg</file>
+    <file>search-icon.svg</file>
 </qresource>
 </RCC>

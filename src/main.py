@@ -4,12 +4,13 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
 from PyQt5.Qsci import * 
-
+# test
 
 import sys
 from pathlib import Path
 
 from editor import Editor
+from fuzzy_searcher import SearchItem, SearchWorker
 
 
 
@@ -22,6 +23,7 @@ class MainWindow(QMainWindow):
         self.init_ui()
 
         self.current_file = None
+        self.current_side_bar = None
 
     def init_ui(self):
         self.setWindowTitle("PYQT EDITOR")
@@ -129,14 +131,41 @@ class MainWindow(QMainWindow):
         self.tab_view.setCurrentIndex(self.tab_view.count() - 1)
         self.statusBar().showMessage(f"Opened {path.name}", 2000)
 
+    def set_cursor_pointer(self, e):
+        self.setCursor(Qt.PointingHandCursor)
+
+    def set_cursor_arrow(self, e):
+        self.setCursor(Qt.ArrowCursor)
 
     def get_side_bar_label(self, path, name):
         label = QLabel()
-        label.setPixmap(QPixmap(path).scaled(QSize(25, 25)))
+        label.setPixmap(QPixmap(path).scaled(QSize(30, 30)))
         label.setAlignment(Qt.AlignmentFlag.AlignTop)
         label.setFont(self.window_font)
         label.mousePressEvent = lambda e: self.show_hide_tab(e, name)
+        # Chaning Cursor on hover
+        label.enterEvent = self.set_cursor_pointer
+        label.leaveEvent = self.set_cursor_arrow
         return label
+
+    def get_frame(self) -> QFrame:
+        frame = QFrame()
+        frame.setFrameShape(QFrame.NoFrame)
+        frame.setFrameShadow(QFrame.Plain)
+        frame.setContentsMargins(0, 0, 0, 0)
+        frame.setStyleSheet('''
+            QFrame {
+                background-color: #21252b;
+                border-radius: 5px;
+                border: none;
+                padding: 5px;
+                color: #D3D3D3;
+            }
+            QFrame:hover {
+                color: white;
+            }
+        ''')
+        return frame
 
     def set_up_body(self):
 
@@ -153,14 +182,15 @@ class MainWindow(QMainWindow):
         body.setSpacing(0)
         body_frame.setLayout(body)
 
-        # side_bar
+        ##############################
+        ###### SIDE BAR ##########
         self.side_bar = QFrame()
         self.side_bar.setFrameShape(QFrame.StyledPanel)
         self.side_bar.setFrameShadow(QFrame.Plain)
         self.side_bar.setStyleSheet(f'''
             background-color: {self.side_bar_clr};
         ''')   
-        side_bar_layout = QHBoxLayout()
+        side_bar_layout = QVBoxLayout()
         side_bar_layout.setContentsMargins(5, 10, 5, 0)
         side_bar_layout.setSpacing(0)
         side_bar_layout.setAlignment(Qt.AlignTop | Qt.AlignCenter)
@@ -168,35 +198,26 @@ class MainWindow(QMainWindow):
         # setup labels
         folder_label = self.get_side_bar_label("./src/icons/folder-icon-blue.svg", "folder-icon")
         side_bar_layout.addWidget(folder_label)
+
+        search_label = self.get_side_bar_label("./src/icons/search-icon", "search-icon")
+        side_bar_layout.addWidget(search_label)
+
         self.side_bar.setLayout(side_bar_layout)
 
-        body.addWidget(self.side_bar)
 
         # split view
         self.hsplit = QSplitter(Qt.Horizontal)
 
+        ##############################
+        ###### FILE MANAGER ##########
+
         # frame and layout to hold tree view (file manager)
-        self.tree_frame = QFrame()
-        self.tree_frame.setLineWidth(1)
-        self.tree_frame.setMaximumWidth(400)
-        self.tree_frame.setMinimumWidth(200)
-        self.tree_frame.setBaseSize(100, 0)
-        self.tree_frame.setContentsMargins(0, 0, 0, 0)
+        self.file_manager_frame = self.get_frame()
+        self.file_manager_frame.setMaximumWidth(400)
+        self.file_manager_frame.setMinimumWidth(200)
         tree_frame_layout = QVBoxLayout()
         tree_frame_layout.setContentsMargins(0, 0, 0, 0)
         tree_frame_layout.setSpacing(0)
-        self.tree_frame.setStyleSheet('''
-            QFrame {
-                background-color: #21252b;
-                border-radius: 5px;
-                border: none;
-                padding: 5px;
-                color: #D3D3D3;
-            }
-            QFrame:hover {
-                color: white;
-            }
-        ''')
 
         # Create file system model to show in tree view
         self.model = QFileSystemModel()
@@ -204,7 +225,8 @@ class MainWindow(QMainWindow):
         # File system filters
         self.model.setFilter(QDir.NoDotAndDotDot | QDir.AllDirs | QDir.Files)
 
-        # Tree View 
+        ##############################
+        ###### FILE VIEWER ##########
         self.tree_view = QTreeView()
         self.tree_view.setFont(QFont("FiraCode", 13))
         self.tree_view.setModel(self.model)
@@ -225,10 +247,83 @@ class MainWindow(QMainWindow):
         self.tree_view.setColumnHidden(2, True)
         self.tree_view.setColumnHidden(3, True)
 
+        ##############################
+        ###### SEARCH VIEW ##########
+        self.search_frame = self.get_frame()
+        self.search_frame.setMaximumWidth(400)
+        self.search_frame.setMinimumWidth(200)
+        
+        search_layout = QVBoxLayout()
+        search_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        search_layout.setContentsMargins(0, 10, 0, 0)
+        search_layout.setSpacing(0)
+
+        search_input = QLineEdit()
+        search_input.setPlaceholderText("Search")
+        search_input.setFont(self.window_font)
+        search_input.setAlignment(Qt.AlignmentFlag.AlignTop)
+        search_input.setStyleSheet("""
+        QLineEdit {
+            background-color: #21252b;
+            border-radius: 5px;
+            border: 1px solid #D3D3D3;
+            padding: 5px;
+            color: #D3D3D3;
+        }
+
+        QLineEdit:hover {
+            color: white;
+            }
+        """)
+
+        ############# CHECKBOX ################
+        self.search_checkbox = QCheckBox("Search in modules")
+        self.search_checkbox.setFont(self.window_font)
+        self.search_checkbox.setStyleSheet("color: white; margin-bottom: 10px;")
+
+        self.search_worker = SearchWorker()
+        self.search_worker.finished.connect(self.search_finshed)
+
+        search_input.textChanged.connect(
+            lambda text: self.search_worker.update(
+                text,
+                self.model.rootDirectory().absolutePath(),
+                self.search_checkbox.isChecked()
+            )
+        )
+        
+
+        ##############################
+        ###### SEARCH ListView ##########
+        self.search_list_view = QListWidget()
+        self.search_list_view.setFont(QFont("FiraCode", 13))
+        self.search_list_view.setStyleSheet("""
+        QListWidget {
+            background-color: #21252b;
+            border-radius: 5px;
+            border: 1px solid #D3D3D3;
+            padding: 5px;
+            color: #D3D3D3;
+        }
+        """)
+
+        self.search_list_view.itemClicked.connect(self.search_list_view_clicked)
+
+
+        search_layout.addWidget(self.search_checkbox)
+        search_layout.addWidget(search_input)
+        search_layout.addSpacerItem(QSpacerItem(5, 5, QSizePolicy.Minimum, QSizePolicy.Minimum))
+        search_layout.addWidget(self.search_list_view)
+
+        self.search_frame.setLayout(search_layout)
+
+
         # setup layout
         tree_frame_layout.addWidget(self.tree_view)
-        self.tree_frame.setLayout(tree_frame_layout)
+        self.file_manager_frame.setLayout(tree_frame_layout)
 
+        ##############################
+        ###### TAB VIEW ##########
 
         # Tab Widget to add editor to
         self.tab_view = QTabWidget()
@@ -238,25 +333,52 @@ class MainWindow(QMainWindow):
         self.tab_view.setDocumentMode(True)
         self.tab_view.tabCloseRequested.connect(self.close_tab)
 
+
+        ##############################
+        ###### SETUP WIDGETS ##########
+
         # add tree view and tab view
-        self.hsplit.addWidget(self.tree_frame)
+        self.hsplit.addWidget(self.file_manager_frame)
         self.hsplit.addWidget(self.tab_view)
 
-
+        body.addWidget(self.side_bar)
         body.addWidget(self.hsplit)
+
         body_frame.setLayout(body)
 
-
         self.setCentralWidget(body_frame)
+
+    def search_finshed(self, items):
+        self.search_list_view.clear()
+        for i in items:
+            self.search_list_view.addItem(i)
+
+    def search_list_view_clicked(self, item: SearchItem):
+        self.set_new_tab(Path(item.full_path))
+        editor: Editor = self.tab_view.currentWidget()
+        editor.setCursorPosition(item.lineno, item.end)
+        editor.setFocus()      
 
     def close_tab(self, index):
         self.tab_view.removeTab(index)
 
     def show_hide_tab(self, e, type_):
-        if self.tree_frame.isHidden():
-            self.tree_frame.show()
-        else:
-            self.tree_frame.hide()
+        if type_ == "folder-icon":
+            if not (self.file_manager_frame in self.hsplit.children()):
+                self.hsplit.replaceWidget(0, self.file_manager_frame)
+        elif type_ == "search-icon":
+            if not (self.search_frame in self.hsplit.children()):
+                self.hsplit.replaceWidget(0, self.search_frame)
+
+        if self.current_side_bar == type_:
+            frame = self.hsplit.children()[0]
+            if frame.isHidden():
+                frame.show()
+            else:
+                frame.hide()
+        
+        self.current_side_bar = type_
+
 
     def tree_view_context_menu(self, pos):
         ...
