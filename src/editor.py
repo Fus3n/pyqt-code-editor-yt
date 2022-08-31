@@ -7,15 +7,22 @@ from PyQt5.Qsci import *
 
 import keyword
 import pkgutil
+from pathlib import Path
 from lexer import PyCustomLexer
+from autcompleter import AutoCompleter
 
 import resources
 
 class Editor(QsciScintilla):
     
-    def __init__(self, parent=None):
-
+    def __init__(self, parent=None, path: Path = None, is_python_file=True):
         super(Editor, self).__init__(parent)
+        self.path = path
+        self.full_path = self.path.absolute()
+        self.is_python_file = is_python_file
+
+
+        self.cursorPositionChanged.connect(self._cusorPositionChanged)        
 
         # encoding
         self.setUtf8(True)
@@ -52,22 +59,20 @@ class Editor(QsciScintilla):
         self.setEolVisibility(False)
 
 
-        # lexer for syntax highlighting
-        self.pylexer = PyCustomLexer(self) 
-        self.pylexer.setDefaultFont(self.window_font)
+        if self.is_python_file:       
+            # lexer for syntax highlighting
+            self.pylexer = PyCustomLexer(self) 
+            self.pylexer.setDefaultFont(self.window_font)
 
-        # Api (you can add autocompletion using this)
-        self.api = QsciAPIs(self.pylexer)
-        for key in keyword.kwlist + dir(__builtins__): # adding builtin functions and keywords
-            self.api.add(key)
+            self.__api = QsciAPIs(self.pylexer)
 
-        for _, name, _ in pkgutil.iter_modules(): # adding all modules names from current interpreter
-            self.api.add(name)
+            self.auto_completer = AutoCompleter(self.full_path, self.__api)
+            self.auto_completer.finished.connect(self.loaded_autocomplete) # you can use this callback to do something 
 
-
-        self.api.prepare()
-
-        self.setLexer(self.pylexer)
+            self.setLexer(self.pylexer)
+        else:
+            self.setPaper(QColor("#282c34"))
+            self.setColor(QColor("#abb2bf"))
 
 
         # line numbers
@@ -86,3 +91,9 @@ class Editor(QsciScintilla):
         else:
             return super().keyPressEvent(e)
     
+    def _cusorPositionChanged(self, line: int, index: int) -> None:
+        if self.is_python_file:
+            self.auto_completer.get_completions(line+1, index, self.text())
+
+    def loaded_autocomplete(self):
+        pass

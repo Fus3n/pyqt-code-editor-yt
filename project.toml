@@ -1,13 +1,14 @@
 [project]
-name="editor-yt"
-version="0.1.0"
-description=""
-main_script="./src/main.py"
+name = "editor-yt"
+version = "0.1.0"
+description = ""
+main_script = "./src/main.py"
 
 [packages]
-PyQt5="5.15.7"
-QScintilla="2.13.3"
+PyQt5 = "5.15.7"
+QScintilla = "2.13.3"
+jedi = "0.18.1"
 
 [scripts]
-upgrade-pip="python -m pip install --upgrade pip"
-build-qrc="pyrcc5 ./src/icons/resouces.qrc -o ./src/resources.py"
+build-qrc = "pyrcc5 ./src/icons/resouces.qrc -o ./src/resources.py"
+upgrade-pip = "python -m pip install --upgrade pip"

@@ -14,6 +14,7 @@ from fuzzy_searcher import SearchItem, SearchWorker
 
 
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(QMainWindow, self).__init__()
@@ -84,8 +85,8 @@ class MainWindow(QMainWindow):
         # you can add more
 
 
-    def get_editor(self) -> QsciScintilla:
-        editor = Editor()
+    def get_editor(self, path: Path = None, is_python_file=True) -> QsciScintilla:
+        editor = Editor(path=path, is_python_file=is_python_file)
         return editor
 
     def is_binary(self, path):
@@ -97,7 +98,8 @@ class MainWindow(QMainWindow):
 
 
     def set_new_tab(self, path: Path, is_new_file=False):
-        editor = self.get_editor()
+        # add whichever extentions you consider as python file
+        editor = self.get_editor(path, path.suffix in {".py", ".pyw"}) 
         
         if is_new_file:
             self.tab_view.addTab(editor, "untitled")
