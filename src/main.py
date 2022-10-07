@@ -264,19 +264,6 @@ class MainWindow(QMainWindow):
         search_input.setPlaceholderText("Search")
         search_input.setFont(self.window_font)
         search_input.setAlignment(Qt.AlignmentFlag.AlignTop)
-        search_input.setStyleSheet("""
-        QLineEdit {
-            background-color: #21252b;
-            border-radius: 5px;
-            border: 1px solid #D3D3D3;
-            padding: 5px;
-            color: #D3D3D3;
-        }
-
-        QLineEdit:hover {
-            color: white;
-            }
-        """)
 
         ############# CHECKBOX ################
         self.search_checkbox = QCheckBox("Search in modules")

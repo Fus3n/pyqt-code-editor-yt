@@ -55,7 +55,7 @@ QScrollBar:handle:vertical {
     background-color: #3e3d3d;
 }
 
-QScrollBar:handle:vertical {
+QScrollBar:handle:vertical:hover {
     background-color: #4c4a4a;
 }
 
@@ -93,8 +93,8 @@ QScrollBar::add-page:vertical,  QScrollBar::sub-page:vertical {
 
 QScrollBar:horizontal {
     border: none;
-    width: 14px;
-    margin: 15px 0 15px 0;
+    height: 14px;
+    margin: 0px 0 0 0;
     background-color: #2d2d2d;
     border-radius: 0px;
 }
@@ -104,10 +104,9 @@ QScrollBar:handle:horizontal {
     background-color: #3e3d3d;
 }
 
-QScrollBar:handle:horizontal {
+QScrollBar:handle:horizontal:hover {
     background-color: #4c4a4a;
 }
-
 
 QScrollBar:handle:horizontal:pressed {
     background-color: #5c5b5b;
@@ -117,7 +116,7 @@ QScrollBar:handle:horizontal:pressed {
 QScrollBar::sub-line::horizontal {
     border: none;
     background: none;
-    height: 15px;
+    width: 15px;
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
     subcontrol-position: top;
@@ -127,7 +126,7 @@ QScrollBar::sub-line::horizontal {
 QScrollBar::add-line::horizontal {
     border: none;
     background: none;
-    height: 15px;
+    width: 15px;
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
     subcontrol-position: bottom;
@@ -144,4 +143,57 @@ QsciScintilla {
     border: none;
     background-color: #282c34;
     color: #D3D3D3;
+}
+
+
+QMessageBox {
+    color: white;
+    border-radius: 30px;
+}
+
+QLineEdit { 
+    background-color: #21252b;
+    border-radius: 4px;
+    border: 1px solid #d3d3d3;
+    padding: 3px;
+    color: #D3D3D3;
+    min-height: 6ex;
+}
+
+QLineEditBox:hover {
+    color: white;
+}
+
+QListView {
+    background-color: #21252b;
+    border-radius: 5px;
+    border: 1px solid #D3D3D3;
+    padding: 5px;
+    color: #d3d3d3;
+}
+QListView::item:hover {
+    background-color: #323842;
+    border: 1px soid #d3d3d3;
+    border-radius: 3px;
+    color: #d3d3d3;
+}
+
+QListView::item:selected {
+    background-color: #323842;
+    border-style: none;
+    color: #D3D3D3;
+}
+
+QMenuBar {
+    background-color: #282c34;
+    border: 1px soid #21252b;
+    padding: 3px;
+    color: #D3D3D3;
+    font-size: 15px;
+}
+
+QMenuBar::item {
+    background-color: #282c34;
+    padding: 3px;
+    color: #d3d3d3;
 }

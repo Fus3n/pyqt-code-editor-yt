@@ -1,36 +1,63 @@
-import builtins
-import keyword
 import re
+import keyword
+import builtins
 import types
+import json
 
 from PyQt5.Qsci import QsciLexerCustom, QsciScintilla
+from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtCore import *
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 
-class PyCustomLexer(QsciLexerCustom):
+# config type
+DefaultConfig = dict[str, str, tuple[str, int]]
 
-    def __init__(self, parent):
-        super(PyCustomLexer, self).__init__(parent)
+class NeutronLexer(QsciLexerCustom):
+    """Base Custo Lexer class for all language"""
 
-        self.color1 = "#abb2bf"
-        self.color2 = "#282c34"
-        
-        # Default Settings
-        self.setDefaultColor(QColor(self.color1))
-        self.setDefaultPaper(QColor(self.color2))
-        self.setDefaultFont(QFont("Consolas", 14))
+    def __init__(self, language_name, editor, theme=None, defaults: DefaultConfig = None):
+        super(NeutronLexer, self).__init__(editor)
 
-        # Keywords
-        self.KEYWORD_LIST = keyword.kwlist
+        self.editor = editor
+        self.language_name = language_name
+        self.theme_json = None
+        if theme is None:
+            self.theme = "./theme.json"
+        else:
+            self.theme = theme
 
-        
-        self.builtin_functions_names = [name for name, obj in vars(builtins).items()
-                                if isinstance(obj, types.BuiltinFunctionType)]
+        self.token_list: list[str, str] = []
+
+        self.keywords_list = []
+        self.builtin_names = []
+
+        if defaults is None:
+            defaults: DefaultConfig = {}
+            defaults["color"] = "#abb2bf"
+            defaults["paper"] = "#282c34"
+            defaults["font"] = ("Consolas", 14)
 
 
+        # Default text settings
+        self.setDefaultColor(QColor(defaults["color"]))
+        self.setDefaultPaper(QColor(defaults["paper"]))
+        self.setDefaultFont(QFont(defaults["font"][0], defaults["font"][1]))
+
+        self._init_theme_vars()
+        self._init_theme()
+
+    def setKeywords(self, keywords: list[str]):
+        """Set List of strings that considered keywords for this language."""
+        self.keywords_list =keywords
+
+    def setBuiltinNames(self, buitin_names: list[str]):
+        """Set list of builtin names"""
+        self.builtin_names = buitin_names
+
+    def _init_theme_vars(self):
         # color per style
+
         self.DEFAULT = 0
         self.KEYWORD = 1
         self.TYPES = 2
@@ -43,45 +70,68 @@ class PyCustomLexer(QsciLexerCustom):
         self.CLASSES = 9
         self.FUNCTION_DEF = 10
 
-        # styles
-        self.setColor(QColor(self.color1), self.DEFAULT)
-        self.setColor(QColor("#c678dd"), self.KEYWORD)
-        self.setColor(QColor("#56b6c2"), self.TYPES)   
-        self.setColor(QColor("#98c379"), self.STRING)
-        self.setColor(QColor("#c678dd"), self.KEYARGS)  
-        self.setColor(QColor("#c678dd"), self.BRACKETS) 
-        self.setColor(QColor("#777777"), self.COMMENTS)  
-        self.setColor(QColor("#d19a5e"), self.CONSTANTS)
-        self.setColor(QColor("#61afd1"), self.FUNCTIONS)  
-        self.setColor(QColor("#C68F55"), self.CLASSES)  
-        self.setColor(QColor("#61afd1"), self.FUNCTION_DEF)  
+        self.default_names = [
+            "default",
+            "keyword",
+            "types",
+            "string",
+            "keyargs",
+            "brackets",
+            "comments",
+            "constants",
+            "functions",
+            "classes",
+            "function_def"
+        ]
 
+        self.font_weights = {
+            "thin": QFont.Thin,
+            "extralight": QFont.ExtraLight,
+            "light": QFont.Light,
+            "normal": QFont.Normal,
+            "medium": QFont.Medium,
+            "demibold": QFont.DemiBold,
+            "bold": QFont.Bold,
+            "extrabold": QFont.ExtraBold,
+            "black": QFont.Black,
+        }
 
-        # paper color
-        self.setPaper(QColor(self.color2), self.DEFAULT)
-        self.setPaper(QColor(self.color2), self.KEYWORD)
-        self.setPaper(QColor(self.color2), self.TYPES)
-        self.setPaper(QColor(self.color2), self.STRING)
-        self.setPaper(QColor(self.color2), self.KEYARGS)
-        self.setPaper(QColor(self.color2), self.BRACKETS)
-        self.setPaper(QColor(self.color2), self.COMMENTS)
-        self.setPaper(QColor(self.color2), self.CONSTANTS)
-        self.setPaper(QColor(self.color2), self.FUNCTIONS)
-        self.setPaper(QColor(self.color2), self.CLASSES)
-        self.setPaper(QColor(self.color2), self.FUNCTION_DEF)
+    def _init_theme(self):
+        with open(self.theme, "r") as f:
+            self.theme_json = json.load(f)
 
-        # font
-        self.setFont(QFont("Consolas", 14, weight=QFont.Bold), self.DEFAULT)
-        self.setFont(QFont("Consolas", 14, weight=QFont.Bold), self.KEYWORD)
-        self.setFont(QFont("Consolas", 14, weight=QFont.Bold), self.CLASSES)
-        self.setFont(QFont("Consolas", 14, weight=QFont.Bold), self.FUNCTION_DEF)
+        colors = self.theme_json["theme"]["syntax"]
 
+        for clr in colors:
+            name: str = list(clr.keys())[0]
 
-    
+            if name not in self.default_names:
+                print(f"Theme error: {name} is not a valid style name")
+                continue
+            
+            for k, v in clr[name].items():
+                if k == "color":
+                    self.setColor(QColor(v), getattr(self, name.upper()))
+                elif k == "paper-color":
+                    self.setPaper(QColor(v), getattr(self, name.upper()))
+                elif k == "font":
+                    try:
+                        self.setFont(
+                            QFont(
+                                v.get("family", "Consolas"), 
+                                v.get("font-size", 14),
+                                self.font_weights.get(v.get("font-weight", QFont.Normal)),
+                                v.get("italic", False)
+                            ),
+                            getattr(self, name.upper())
+                        )    
+                    except AttributeError as e:
+                        print(f"theme error: {e}")
+            
+
     def language(self) -> str:
-        return "PYCustomLexer"
+        return self.language_name
 
-    
     def description(self, style: int) -> str:
         if style == self.DEFAULT:
             return "DEFAULT"
@@ -105,66 +155,90 @@ class PyCustomLexer(QsciLexerCustom):
             return "CLASSES"
         elif style == self.FUNCTION_DEF:
             return "FUNCTION_DEF"
-        else:
-            return ""
 
-    def get_tokens(self, text) -> list[str, int]:
+        return ""
+
+    def generate_token(self, text):
         # 3. Tokenize the text 
         # ---------------------
         p = re.compile(r"[*]\/|\/[*]|\s+|\w+|\W")
 
         # 'token_list' is a list of tuples: (token_name, token_len), ex: '(class, 5)' 
-        return [ (token, len(bytearray(token, "utf-8"))) for token in p.findall(text)]
+        self.token_list =  [ (token, len(bytearray(token, "utf-8"))) for token in p.findall(text)]
 
+    def next_tok(self, skip: int = None):
+        if len(self.token_list) > 0:
+            if skip is not None and skip != 0:
+                for _ in range(skip-1):
+                    if len(self.token_list) > 0:
+                        self.token_list.pop(0)
+            return self.token_list.pop(0)
+        else:
+            return None
+
+    def peek_tok(self, n=0):
+        try:
+            return self.token_list[n]
+        except IndexError:
+            return ['']
+
+    def skip_spaces_peek(self, skip=None):
+        """find he next non-space token but using peek without consuming it"""
+        i = 0
+        tok = " "
+        if skip is not None:
+            i = skip
+        while tok[0].isspace():
+            tok = self.peek_tok(i)
+            i += 1
+        return tok, i
+
+    
+
+    
+class PyCustomLexer(NeutronLexer):
+    """Custom lexer for python"""
+
+    def __init__(self, editor):
+        super(PyCustomLexer, self).__init__("Python", editor)
+
+        self.setKeywords(keyword.kwlist)
+        self.setBuiltinNames([
+            name
+            for name, obj in vars(builtins).items()
+            if isinstance(obj, types.BuiltinFunctionType)
+        ])
 
     def styleText(self, start: int, end: int) -> None:
-        
+        # 1. Start styling procedure
         self.startStyling(start)
-        editor: QsciScintilla = self.parent()
 
-        text = editor.text()[start:end]
-        token_list = self.get_tokens(text)
+        # 2. Slice out part from the text
+        text = self.editor.text()[start:end]
 
+        # 3. Tokenize the text
+        self.generate_token(text)
 
+        # Flags
         string_flag = False
-
-        if start > 0:
-            previous_style_nr = editor.SendScintilla(editor.SCI_GETSTYLEAT, start - 1)
-            if previous_style_nr == self.STRING:
-                string_flag = False
-
-        def next_tok(skip: int=None):
-            if len(token_list) > 0:
-                if skip is not None and skip != 0:
-                    for _ in range(skip-1):
-                        if len(token_list) > 0:
-                            token_list.pop(0)
-                return token_list.pop(0)
-            else:
-                return None
-        
-        def peek_tok(n=0):
-            try:
-                return token_list[n]
-            except IndexError:
-                return ['']
-
-        def skip_sapce_peek(skip=None):
-            i = 0
-            tok = (' ')
-            if skip is not None:
-                i = skip
-            while tok[0].isspace():
-                tok = peek_tok(i)
-                i += 1
-            return tok, i
+        comment_flag = False
 
         while True:
-            curr_token = next_tok()
+            curr_token = self.next_tok()
+
             if curr_token is None:
                 break
+
             tok: str = curr_token[0]
             tok_len: int = curr_token[1]
+
+            # if comment_flag:
+            #     # unstable
+            #     self.setStyling(curr_token[1], self.COMMENTS)
+            #     if tok == "\n" or tok == "\r\n" or tok == "\r" or tok == "\r\t":
+            #         comment_flag = False
+            #     continue
+
 
             if string_flag:
                 self.setStyling(tok_len, self.STRING)
@@ -173,28 +247,38 @@ class PyCustomLexer(QsciLexerCustom):
                 continue
 
             if tok == "class":
-                name, ni = skip_sapce_peek()
-                brac_or_colon, _ = skip_sapce_peek(ni)
+                name, ni = self.skip_spaces_peek()
+                brac_or_colon, _ = self.skip_spaces_peek(ni)
                 if name[0].isidentifier() and brac_or_colon[0] in (":", "("):
                     self.setStyling(tok_len, self.KEYWORD)
-                    _ = next_tok(ni)
+                    _ = self.next_tok(ni)
                     self.setStyling(name[1]+1, self.CLASSES)
                     continue
                 else:
                     self.setStyling(tok_len, self.KEYWORD)
                     continue
             elif tok == "def":
-                name, ni = skip_sapce_peek()
+                name, ni = self.skip_spaces_peek()
                 if name[0].isidentifier():
                     self.setStyling(tok_len, self.KEYWORD)
-                    _ = next_tok(ni)
+                    _ = self.next_tok(ni)
                     self.setStyling(name[1]+1, self.FUNCTION_DEF)
                     continue
                 else:
                     self.setStyling(tok_len, self.KEYWORD)
                     continue
-            elif tok in self.KEYWORD_LIST:
+            elif tok in self.keywords_list:
                 self.setStyling(tok_len, self.KEYWORD)
+            elif tok.strip() == "." and self.peek_tok()[0].isidentifier():
+                self.setStyling(tok_len, self.DEFAULT)
+                curr_token = self.next_tok()
+                tok: str = curr_token[0]
+                tok_len: int = curr_token[1]
+                if self.peek_tok()[0] == "(":
+                    self.setStyling(tok_len, self.FUNCTIONS)
+                else:
+                    self.setStyling(tok_len, self.DEFAULT)
+                continue
             elif tok.isnumeric() or tok == 'self':
                 self.setStyling(tok_len, self.CONSTANTS)
             elif tok in ["(", ")", "{", "}", "[", "]"]:
@@ -202,7 +286,10 @@ class PyCustomLexer(QsciLexerCustom):
             elif tok == '"' or tok == "'":
                 self.setStyling(tok_len, self.STRING)
                 string_flag = True
-            elif tok in self.builtin_functions_names or tok in ['+', '-', '*', '/', '%', '=', '<', '>']:
+            # elif tok == "#":
+            #     self.setStyling(tok_len, self.COMMENTS)
+            #     comment_flag = True
+            elif tok in self.builtin_names or tok in ['+', '-', '*', '/', '%', '=', '<', '>']:
                 self.setStyling(tok_len, self.TYPES)
             else:
                 self.setStyling(tok_len, self.DEFAULT)
