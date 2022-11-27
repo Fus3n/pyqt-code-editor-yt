@@ -21,7 +21,6 @@ class Editor(QsciScintilla):
         self.full_path = self.path.absolute()
         self.is_python_file = is_python_file
 
-
         self.cursorPositionChanged.connect(self._cusorPositionChanged)        
 
         # encoding

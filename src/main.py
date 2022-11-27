@@ -11,8 +11,7 @@ from pathlib import Path
 
 from editor import Editor
 from fuzzy_searcher import SearchItem, SearchWorker
-
-
+from file_manager import FileManager
 
 
 class MainWindow(QMainWindow):
@@ -185,6 +184,17 @@ class MainWindow(QMainWindow):
         body_frame.setLayout(body)
 
         ##############################
+        ###### TAB VIEW ##########
+
+        # Tab Widget to add editor to
+        self.tab_view = QTabWidget()
+        self.tab_view.setContentsMargins(0, 0, 0, 0)
+        self.tab_view.setTabsClosable(True)
+        self.tab_view.setMovable(True)
+        self.tab_view.setDocumentMode(True)
+        self.tab_view.tabCloseRequested.connect(self.close_tab)
+
+        ##############################
         ###### SIDE BAR ##########
         self.side_bar = QFrame()
         self.side_bar.setFrameShape(QFrame.StyledPanel)
@@ -217,37 +227,21 @@ class MainWindow(QMainWindow):
         self.file_manager_frame = self.get_frame()
         self.file_manager_frame.setMaximumWidth(400)
         self.file_manager_frame.setMinimumWidth(200)
-        tree_frame_layout = QVBoxLayout()
-        tree_frame_layout.setContentsMargins(0, 0, 0, 0)
-        tree_frame_layout.setSpacing(0)
 
-        # Create file system model to show in tree view
-        self.model = QFileSystemModel()
-        self.model.setRootPath(os.getcwd())
-        # File system filters
-        self.model.setFilter(QDir.NoDotAndDotDot | QDir.AllDirs | QDir.Files)
+        self.file_manager_layout = QVBoxLayout()
+        self.file_manager_layout.setContentsMargins(0, 0, 0, 0)
+        self.file_manager_layout.setSpacing(0)
 
-        ##############################
-        ###### FILE VIEWER ##########
-        self.tree_view = QTreeView()
-        self.tree_view.setFont(QFont("FiraCode", 13))
-        self.tree_view.setModel(self.model)
-        self.tree_view.setRootIndex(self.model.index(os.getcwd()))
-        self.tree_view.setSelectionMode(QTreeView.SingleSelection)
-        self.tree_view.setSelectionBehavior(QTreeView.SelectRows)
-        self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
-        # add custom context menu
-        self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tree_view.customContextMenuRequested.connect(self.tree_view_context_menu)
-        # handling click
-        self.tree_view.clicked.connect(self.tree_view_clicked)
-        self.tree_view.setIndentation(10)
-        self.tree_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Hide header and hide other columns except for name
-        self.tree_view.setHeaderHidden(True) # hiding header
-        self.tree_view.setColumnHidden(1, True)
-        self.tree_view.setColumnHidden(2, True)
-        self.tree_view.setColumnHidden(3, True)
+        self.file_manager = FileManager(
+            tab_view=self.tab_view, 
+            set_new_tab=self.set_new_tab,
+            main_window=self
+        )
+
+        # setup layout
+        self.file_manager_layout.addWidget(self.file_manager)
+        self.file_manager_frame.setLayout(self.file_manager_layout)
+
 
         ##############################
         ###### SEARCH VIEW ##########
@@ -302,26 +296,12 @@ class MainWindow(QMainWindow):
         search_layout.addWidget(self.search_checkbox)
         search_layout.addWidget(search_input)
         search_layout.addSpacerItem(QSpacerItem(5, 5, QSizePolicy.Minimum, QSizePolicy.Minimum))
+        
         search_layout.addWidget(self.search_list_view)
-
         self.search_frame.setLayout(search_layout)
 
 
-        # setup layout
-        tree_frame_layout.addWidget(self.tree_view)
-        self.file_manager_frame.setLayout(tree_frame_layout)
-
-        ##############################
-        ###### TAB VIEW ##########
-
-        # Tab Widget to add editor to
-        self.tab_view = QTabWidget()
-        self.tab_view.setContentsMargins(0, 0, 0, 0)
-        self.tab_view.setTabsClosable(True)
-        self.tab_view.setMovable(True)
-        self.tab_view.setDocumentMode(True)
-        self.tab_view.tabCloseRequested.connect(self.close_tab)
-
+      
 
         ##############################
         ###### SETUP WIDGETS ##########
@@ -372,10 +352,6 @@ class MainWindow(QMainWindow):
     def tree_view_context_menu(self, pos):
         ...
 
-    def tree_view_clicked(self, index: QModelIndex):
-        path = self.model.filePath(index)
-        p = Path(path)
-        self.set_new_tab(p)
        
     def new_file(self):
         self.set_new_tab(None, is_new_file=True)
