@@ -194,8 +194,6 @@ class NeutronLexer(QsciLexerCustom):
         return tok, i
 
     
-
-    
 class PyCustomLexer(NeutronLexer):
     """Custom lexer for python"""
 
@@ -223,6 +221,11 @@ class PyCustomLexer(NeutronLexer):
         string_flag = False
         comment_flag = False
 
+        if start > 0:
+            prev_style = self.editor.SendScintilla(self.editor.SCI_GETSTYLEAT, start -1)
+            if prev_style == self.COMMENTS:
+                comment_flag = False
+
         while True:
             curr_token = self.next_tok()
 
@@ -232,12 +235,11 @@ class PyCustomLexer(NeutronLexer):
             tok: str = curr_token[0]
             tok_len: int = curr_token[1]
 
-            # if comment_flag:
-            #     # unstable
-            #     self.setStyling(curr_token[1], self.COMMENTS)
-            #     if tok == "\n" or tok == "\r\n" or tok == "\r" or tok == "\r\t":
-            #         comment_flag = False
-            #     continue
+            if comment_flag:
+                self.setStyling(tok_len, self.COMMENTS)
+                if tok.startswith("\n"):
+                    comment_flag = False
+                continue
 
 
             if string_flag:
@@ -286,9 +288,9 @@ class PyCustomLexer(NeutronLexer):
             elif tok == '"' or tok == "'":
                 self.setStyling(tok_len, self.STRING)
                 string_flag = True
-            # elif tok == "#":
-            #     self.setStyling(tok_len, self.COMMENTS)
-            #     comment_flag = True
+            elif tok == "#":
+                self.setStyling(tok_len, self.COMMENTS)
+                comment_flag = True
             elif tok in self.builtin_names or tok in ['+', '-', '*', '/', '%', '=', '<', '>']:
                 self.setStyling(tok_len, self.TYPES)
             else:

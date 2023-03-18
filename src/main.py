@@ -26,7 +26,8 @@ class MainWindow(QMainWindow):
         self.current_side_bar = None
 
     def init_ui(self):
-        self.setWindowTitle("PYQT EDITOR")
+        self.app_name = "PYQT EDITOR"
+        self.setWindowTitle(self.app_name)
         self.resize(1300, 900)
 
         self.setStyleSheet(open("./src/css/style.qss", "r").read())
@@ -39,12 +40,16 @@ class MainWindow(QMainWindow):
 
         self.set_up_menu()
         self.set_up_body()
-        self.statusBar().showMessage("heelo")
-
-        
+        self.set_up_status_bar()
 
         self.show()
 
+    def set_up_status_bar(self):
+        # Create status bar
+        stat = QStatusBar(self)
+        stat.setStyleSheet("color: #D3D3D3;")
+        stat.showMessage("Ready", 3000)
+        self.setStatusBar(stat)
 
     def set_up_menu(self):
         menu_bar = self.menuBar()
@@ -83,9 +88,8 @@ class MainWindow(QMainWindow):
         copy_action.triggered.connect(self.copy)
         # you can add more
 
-
     def get_editor(self, path: Path = None, is_python_file=True) -> QsciScintilla:
-        editor = Editor(path=path, is_python_file=is_python_file)
+        editor = Editor(self, path=path, is_python_file=is_python_file)
         return editor
 
     def is_binary(self, path):
@@ -95,39 +99,36 @@ class MainWindow(QMainWindow):
         with open(path, 'rb') as f:
             return b'\0' in f.read(1024)
 
-
     def set_new_tab(self, path: Path, is_new_file=False):
+        if not is_new_file and self.is_binary(path):
+            self.statusBar().showMessage("Cannot Open Binary File", 2000)
+            return
+
+        if path.is_dir():
+            return
+
         # add whichever extentions you consider as python file
         editor = self.get_editor(path, path.suffix in {".py", ".pyw"}) 
         
         if is_new_file:
             self.tab_view.addTab(editor, "untitled")
-            self.setWindowTitle("untitled")
+            self.setWindowTitle("untitled - " + self.app_name)
             self.statusBar().showMessage("Opened untitled")
             self.tab_view.setCurrentIndex(self.tab_view.count() - 1)
             self.current_file = None
             return
         
-        if not path.is_file():
-            return
-        if self.is_binary(path):
-            self.statusBar().showMessage("Cannot Open Binary File", 2000)
-            return
-
-        
         # check if file already open
         for i in range(self.tab_view.count()):
-            if self.tab_view.tabText(i) == path.name:
+            if self.tab_view.tabText(i) == path.name or self.tab_view.tabText(i) == "*"+path.name:
                 self.tab_view.setCurrentIndex(i)
                 self.current_file = path
                 return
 
-
-
         # create new tab
         self.tab_view.addTab(editor, path.name)
-        editor.setText(path.read_text())
-        self.setWindowTitle(path.name)
+        editor.setText(path.read_text(encoding="utf-8"))
+        self.setWindowTitle(f"{path.name} - {self.app_name}")
         self.current_file = path
         self.tab_view.setCurrentIndex(self.tab_view.count() - 1)
         self.statusBar().showMessage(f"Opened {path.name}", 2000)
@@ -328,7 +329,27 @@ class MainWindow(QMainWindow):
         editor.setCursorPosition(item.lineno, item.end)
         editor.setFocus()      
 
+    def show_dialog(self, title, msg) -> int:
+        dialog = QMessageBox(self)
+        dialog.setFont(self.font())
+        dialog.font().setPointSize(14)
+        dialog.setWindowTitle(title)
+        dialog.setWindowIcon(QIcon(":/icons/close-icon.svg"))
+        dialog.setText(msg)
+        dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dialog.setDefaultButton(QMessageBox.No)
+        dialog.setIcon(QMessageBox.Warning)
+        return dialog.exec_()
+
     def close_tab(self, index):
+        editor: Editor = self.tab_view.currentWidget()
+        if editor.current_file_changed:
+            dialog = self.show_dialog(
+                "Close", f"Do you want to save the changes made to {self.current_file.name}?"
+            )
+            if dialog == QMessageBox.Yes:
+                self.save_file()
+
         self.tab_view.removeTab(index)
 
     def show_hide_tab(self, e, type_):
@@ -352,9 +373,8 @@ class MainWindow(QMainWindow):
     def tree_view_context_menu(self, pos):
         ...
 
-       
     def new_file(self):
-        self.set_new_tab(None, is_new_file=True)
+        self.set_new_tab(Path("untitled"), is_new_file=True)
 
     def save_file(self):
         if self.current_file is None and self.tab_view.count() > 0:
@@ -363,7 +383,7 @@ class MainWindow(QMainWindow):
         editor = self.tab_view.currentWidget()
         self.current_file.write_text(editor.text())
         self.statusBar().showMessage(f"Saved {self.current_file.name}", 2000)
-
+        editor.current_file_changed = False
     
     def save_as(self):
         # save as 
@@ -380,7 +400,7 @@ class MainWindow(QMainWindow):
         self.tab_view.setTabText(self.tab_view.currentIndex(), path.name)
         self.statusBar().showMessage(f"Saved {path.name}", 2000)
         self.current_file = path
-
+        editor.current_file_changed = False
 
     def open_file(self):
         # open file
