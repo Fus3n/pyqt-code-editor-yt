@@ -271,7 +271,7 @@ class MainWindow(QMainWindow):
         search_input.textChanged.connect(
             lambda text: self.search_worker.update(
                 text,
-                self.model.rootDirectory().absolutePath(),
+                self.file_manager.model.rootDirectory().absolutePath(),
                 self.search_checkbox.isChecked()
             )
         )
