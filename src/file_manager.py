@@ -11,6 +11,20 @@ import subprocess
 
 from editor import Editor
 
+class FileIconProvider(QFileIconProvider):
+    def icon(self, parameter):
+        if isinstance(parameter, QFileInfo):
+            info : QFileInfo = parameter
+            if info.isDir():
+                return QIcon("./src/icons/folder.png")
+            if info.suffix() == "py":
+                return QIcon("./src/icons/python_icon.png")
+            if info.suffix() == "css":
+                return QIcon("./src/icons/css.png")
+            if info.suffix() == "json":
+                return QIcon("./src/icons/json.png")
+
+        return super(FileIconProvider, self).icon(parameter)
 
 class FileManager(QTreeView):
     def __init__(self, tab_view, set_new_tab=None, main_window=None):
@@ -26,6 +40,7 @@ class FileManager(QTreeView):
         self.manager_font = QFont("FiraCode", 13) # font must be installed on pc
         
         self.model: QFileSystemModel = QFileSystemModel()
+        self.model.setIconProvider(FileIconProvider())
         self.model.setRootPath(os.getcwd())
         # File system filters
         self.model.setFilter(QDir.NoDotAndDotDot | QDir.AllDirs | QDir.Files | QDir.Drives)
